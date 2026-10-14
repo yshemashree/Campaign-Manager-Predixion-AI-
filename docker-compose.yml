@@ -1,0 +1,118 @@
+# One command: docker compose up --build
+#
+# Start order (enforced with healthchecks, not sleeps):
+#   postgres, redis  ->  migrate (runs once, then exits)  ->  api, worker  ->  web
+# mock-sarvam starts on its own; the worker calls it instead of the real Sarvam API.
+#
+# Every setting has a default, so no .env file is needed. Copy .env.example to .env to
+# change ports or credentials.
+
+name: campaign-manager
+
+x-backend: &backend
+  build: ./backend
+  image: campaign-manager-backend
+  restart: unless-stopped
+  environment: &backend-env
+    APP_ENV: ${APP_ENV:-local}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    LOG_JSON: ${LOG_JSON:-true}
+    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-campaign}:${POSTGRES_PASSWORD:-campaign}@postgres:5432/${POSTGRES_DB:-campaign_manager}
+    REDIS_URL: redis://redis:6379/0
+    SARVAM_BASE_URL: ${SARVAM_BASE_URL:-http://mock-sarvam:9000}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-campaign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campaign}
+      POSTGRES_DB: ${POSTGRES_DB:-campaign_manager}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    # AOF with fsync every second: survives restarts, loses at most ~1 s of writes.
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.healthcheck", "api"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      mock-sarvam:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.healthcheck", "worker"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mock-sarvam:
+    build: ./mock_sarvam
+    restart: unless-stopped
+    ports:
+      - "${MOCK_SARVAM_HOST_PORT:-9000}:9000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${WEB_HOST_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

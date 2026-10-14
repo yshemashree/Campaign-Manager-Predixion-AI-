@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaign Manager</title>
+  <style>
+    :root { --bg: #f7f7f5; --card: #fff; --text: #1d1d1b; --muted: #6b6b66; --ok: #1f7a3f; --bad: #b42318; --line: #e4e4df; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #161615; --card: #1f1f1d; --text: #ececea; --muted: #9a9a94; --ok: #4cc27a; --bad: #f0786c; --line: #2e2e2b; }
+    }
+    body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+    main { max-width: 560px; margin: 12vh auto; padding: 0 16px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    p { color: var(--muted); margin: 0 0 24px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 16px; }
+    .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .row:last-child { border-bottom: 0; }
+    .ok { color: var(--ok); } .fail { color: var(--bad); }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Campaign Manager</h1>
+    <p>The web app is coming soon. This page checks that the stack is up.</p>
+    <div class="card" id="status">
+      <div class="row"><span>API</span><span>checking...</span></div>
+    </div>
+    <p style="margin-top:16px">API docs: <a href="http://localhost:8000/api/docs">localhost:8000/api/docs</a></p>
+  </main>
+  <script>
+    async function refresh() {
+      const el = document.getElementById("status");
+      try {
+        const res = await fetch("/readyz", { cache: "no-store" });
+        const body = await res.json();
+        const rows = [["API", "ok"], ...Object.entries(body.checks)];
+        el.innerHTML = rows.map(([name, state]) =>
+          `<div class="row"><span>${name}</span><span class="${state === "ok" ? "ok" : "fail"}">${state === "ok" ? "up" : "down"}</span></div>`
+        ).join("");
+      } catch {
+        el.innerHTML = '<div class="row"><span>API</span><span class="fail">unreachable</span></div>';
+      }
+    }
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

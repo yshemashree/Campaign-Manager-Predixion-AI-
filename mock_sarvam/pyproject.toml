@@ -1,0 +1,28 @@
+[project]
+name = "mock-sarvam"
+version = "0.1.0"
+description = "Stand-in for Sarvam's outbound call API, for local development, tests and load demos"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi>=0.143.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

@@ -54,11 +54,47 @@ flowchart TB
 - **At most once per attempt.** Leases, send-intent markers and unique constraints mean a crash never causes a blind re-dial. Uncertain attempts are settled by the webhook (which carries our attempt id) or a timeout.
 - **Retries are just rows with a new due time.** They are shifted into the calling window and pass through the same gate, so they obey the same limits.
 
-## Planned quickstart
+## Quickstart
+
+You only need [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ```bash
-cp .env.example .env
-docker compose up --build        # API, workers, web UI, Postgres, Redis, mock Sarvam
+docker compose up --build
 ```
 
-(Available from Day 1 onward.)
+That starts everything, in order, and waits until each part is healthy:
+
+| Service | What it is | URL |
+| --- | --- | --- |
+| web | Web app (placeholder page for now, shows a live status check) | http://localhost:8080 |
+| api | REST API, interactive docs | http://localhost:8000/api/docs |
+| worker | Places calls; runs the scheduler (scale with `--scale worker=3`) | n/a |
+| mock-sarvam | Stand-in for Sarvam's outbound API; no real calls are ever made | http://localhost:9000/health |
+| postgres | Database (published on port 5433) | n/a |
+| redis | Rate gate and live events (published on port 6380) | n/a |
+| migrate | Applies database migrations once, then exits | n/a |
+
+No `.env` file is needed. To change ports or credentials, copy `.env.example` to `.env` and edit it.
+
+## Project layout
+
+```
+backend/        API, worker and database migrations (Python, FastAPI)
+mock_sarvam/    Mock of Sarvam's outbound call API
+frontend/       Web app (placeholder page for now)
+docs/           Design documents
+```
+
+## Development
+
+Running tests and linters on your machine needs [uv](https://docs.astral.sh/uv/) (`brew install uv`).
+
+```bash
+make up          # start the stack and wait until healthy
+make test        # all tests (integration tests use the running stack)
+make test-unit   # fast tests only, no database needed
+make lint        # lint, format check and type check
+make down        # stop (keeps data); `make reset` also deletes data
+```
+
+Health endpoints: `GET /healthz` says the process is alive. `GET /readyz` also checks Postgres and Redis, and returns 503 with the failing dependency named if either is down.
