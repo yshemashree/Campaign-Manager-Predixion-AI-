@@ -52,7 +52,8 @@ async def test_readyz_is_ready_with_real_dependencies(real_settings: Settings) -
 
 async def test_worker_heartbeats_then_cleans_up_on_stop(real_settings: Settings) -> None:
     stop = asyncio.Event()
-    task = asyncio.create_task(run_worker(real_settings, stop))
+    # Heartbeat only: the engine loops have their own tests against a throwaway database.
+    task = asyncio.create_task(run_worker(real_settings, stop, engine_loops=False))
     heartbeat_file = Path(real_settings.worker_heartbeat_file)
     redis = create_redis(real_settings)
     key = f"worker:heartbeat:{worker_id()}"
