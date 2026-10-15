@@ -1,22 +1,32 @@
 """Database tables.
 
 Every model inherits from `Base`. Alembic compares `Base.metadata` against the live database
-to generate migrations, so a model only counts once it is imported here.
+to generate migrations, so every model module is imported here.
 """
 
-from sqlalchemy import MetaData
-from sqlalchemy.orm import DeclarativeBase
+from app.models.base import Base
+from app.models.campaigns import (
+    Agent,
+    CallAttempt,
+    Campaign,
+    Cohort,
+    Connection,
+    Contact,
+    WebhookEvent,
+)
+from app.models.tenancy import Organization, User, Workspace, WorkspaceMember
 
-# Predictable constraint and index names (e.g. uq_contacts_campaign_id) instead of
-# database-generated ones, so migrations can refer to them reliably.
-NAMING_CONVENTION = {
-    "ix": "ix_%(table_name)s_%(column_0_N_name)s",
-    "uq": "uq_%(table_name)s_%(column_0_N_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-}
-
-
-class Base(DeclarativeBase):
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+__all__ = [
+    "Agent",
+    "Base",
+    "CallAttempt",
+    "Campaign",
+    "Cohort",
+    "Connection",
+    "Contact",
+    "Organization",
+    "User",
+    "WebhookEvent",
+    "Workspace",
+    "WorkspaceMember",
+]

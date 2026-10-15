@@ -5,10 +5,16 @@ description = "Campaign Manager backend: API, workers and the execution engine"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "alembic>=1.20.0",
+    "argon2-cffi>=25.1.0",
     "asyncpg>=0.32.0",
+    "cryptography>=50.0.2",
+    "email-validator>=2.3.0",
     "fastapi>=0.143.1",
     "httpx>=0.28.1",
+    "phonenumbers>=9.0.41",
     "pydantic-settings>=2.16.0",
+    "pyjwt>=2.15.1",
+    "python-multipart>=0.0.32",
     "redis>=8.1.0",
     "sqlalchemy[asyncio]>=2.1.4",
     "structlog>=26.1.0",
@@ -17,6 +23,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.169.3",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
@@ -36,8 +43,16 @@ strict = true
 plugins = ["pydantic.mypy"]
 exclude = ["migrations/"]
 
+[[tool.mypy.overrides]]
+module = ["asyncpg"]  # ships no type information
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = ["integration: needs a real Postgres and Redis (skipped when they are not reachable)"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares parameters with these calls as defaults; that's the intended usage.
+extend-immutable-calls = ["fastapi.Query", "fastapi.File", "fastapi.Form", "fastapi.Depends"]
