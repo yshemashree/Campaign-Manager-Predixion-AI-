@@ -5,6 +5,7 @@ description = "Stand-in for Sarvam's outbound call API, for local development, t
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastapi>=0.143.1",
+    "httpx>=0.28.1",
     "uvicorn[standard]>=0.54.0",
 ]
 

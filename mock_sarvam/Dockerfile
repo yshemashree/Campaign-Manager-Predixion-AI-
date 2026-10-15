@@ -18,4 +18,4 @@ RUN useradd --system --uid 10001 app && chown -R app /app
 USER app
 
 EXPOSE 9000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9000", "--no-access-log"]
