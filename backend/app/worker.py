@@ -1,10 +1,12 @@
 """Worker service entrypoint: `python -m app.worker`.
 
-Today it only proves the process is alive and can reach Postgres and Redis (a heartbeat).
-The dispatch slots and the scheduler loop are added here in the engine phase.
+Runs three things side by side:
+    heartbeat   proves the process is alive and connected (used by the container healthcheck)
+    scheduler   the once-a-second reconcile loop (only the leader acts)
+    dispatcher  N slots that place calls
 
-Shutdown is graceful: on SIGTERM (docker stop) or Ctrl+C the loop finishes its current step
-and closes connections, instead of being killed mid-way.
+Shutdown is graceful: on SIGTERM (docker stop) or Ctrl+C the loops finish their current step
+and close connections, instead of being killed mid-way.
 """
 
 import asyncio
@@ -15,10 +17,17 @@ import socket
 import time
 from pathlib import Path
 
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncEngine
+
 from app.core.config import Settings, get_settings
-from app.core.db import create_engine, ping_database
+from app.core.db import create_engine, create_session_factory, ping_database
 from app.core.logging import configure_logging, get_logger
 from app.core.redis import create_redis, ping_redis
+from app.engine.dispatcher import Dispatcher
+from app.engine.gate import Gate
+from app.engine.sarvam_client import SarvamClient
+from app.engine.scheduler import Scheduler
 
 log = get_logger("worker")
 
@@ -27,14 +36,11 @@ def worker_id() -> str:
     return f"{socket.gethostname()}-{os.getpid()}"
 
 
-async def run(settings: Settings, stop: asyncio.Event) -> None:
-    engine = create_engine(settings)
-    redis = create_redis(settings)
-    wid = worker_id()
+async def heartbeat(
+    settings: Settings, engine: AsyncEngine, redis: "Redis", wid: str, stop: asyncio.Event
+) -> None:
     heartbeat_file = Path(settings.worker_heartbeat_file)
     interval = settings.worker_heartbeat_interval_s
-    log.info("worker_started", worker_id=wid)
-
     try:
         while not stop.is_set():
             try:
@@ -49,11 +55,33 @@ async def run(settings: Settings, stop: asyncio.Event) -> None:
                 # Not fatal: dependencies may be restarting. The container healthcheck
                 # turns unhealthy if this keeps failing, because the file goes stale.
                 log.warning("heartbeat_failed", worker_id=wid, error=repr(exc))
-
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(stop.wait(), timeout=interval)
     finally:
-        await redis.delete(f"worker:heartbeat:{wid}")
+        with contextlib.suppress(Exception):
+            await redis.delete(f"worker:heartbeat:{wid}")
+
+
+async def run(settings: Settings, stop: asyncio.Event, *, engine_loops: bool = True) -> None:
+    engine = create_engine(settings)
+    redis = create_redis(settings)
+    factory = create_session_factory(engine)
+    gate = Gate(redis, settings)
+    sarvam = SarvamClient(settings)
+    wid = worker_id()
+    log.info("worker_started", worker_id=wid, slots=settings.dispatch_slots)
+
+    tasks = [asyncio.create_task(heartbeat(settings, engine, redis, wid, stop))]
+    if engine_loops:
+        tasks.append(asyncio.create_task(Scheduler(settings, factory, redis, gate, wid).run(stop)))
+        tasks.append(
+            asyncio.create_task(Dispatcher(settings, factory, redis, gate, sarvam, wid).run(stop))
+        )
+    try:
+        await stop.wait()
+    finally:
+        await asyncio.gather(*tasks, return_exceptions=True)
+        await sarvam.aclose()
         await redis.aclose()
         await engine.dispose()
         log.info("worker_stopped", worker_id=wid)

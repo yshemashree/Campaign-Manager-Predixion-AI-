@@ -8,14 +8,27 @@ starting it and plug in their own health checks.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 
 from app.api import health
 from app.api.middleware import RequestContextMiddleware
+from app.api.v1 import (
+    agents,
+    auth,
+    campaigns,
+    contacts,
+    events,
+    organizations,
+    users,
+    webhooks,
+    workspaces,
+)
 from app.core.config import Settings, get_settings
 from app.core.db import create_engine, create_session_factory, ping_database
+from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.redis import create_redis, ping_redis
+from app.engine.gate import Gate
 
 log = get_logger(__name__)
 
@@ -29,6 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
     app.state.redis = redis
+    app.state.gate = Gate(redis, settings)
     app.state.health_checks = {
         "database": lambda: ping_database(engine),
         "redis": lambda: ping_redis(redis),
@@ -48,8 +62,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Campaign Manager API",
-        version="0.1.0",
-        description="Outbound voice campaigns: cohorts, scheduling, retries and per-org limits.",
+        version="0.2.0",
+        description=(
+            "Outbound voice campaigns: organisations, agents, cohorts, scheduling, retries, "
+            "and per-organisation limits on concurrent calls and calls per second. "
+            "Authenticate with POST /api/v1/auth/login, then send `Authorization: Bearer <token>`."
+        ),
         docs_url="/api/docs",
         redoc_url=None,
         openapi_url="/api/openapi.json",
@@ -59,7 +77,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.health_checks = {}
 
     app.add_middleware(RequestContextMiddleware)
+    install_error_handlers(app)
     app.include_router(health.router)
+
+    v1 = APIRouter(prefix="/api/v1")
+    for module in (
+        auth,
+        organizations,
+        workspaces,
+        users,
+        agents,
+        campaigns,
+        contacts,
+        events,
+        webhooks,
+    ):
+        v1.include_router(module.router)
+    app.include_router(v1)
     return app
 
 
