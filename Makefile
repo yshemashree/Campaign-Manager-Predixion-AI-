@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
 
-.PHONY: help up down reset logs ps migrate test test-unit lint fmt check
+.PHONY: help up down reset logs ps migrate prove api-docs test test-unit lint fmt check
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -28,6 +28,12 @@ ps: ## Show service status
 
 migrate: ## Run database migrations
 	$(COMPOSE) run --rm migrate
+
+prove: ## Load test on the running stack; the mock Sarvam referees the org limits
+	$(COMPOSE) exec api python -m app.tools.prove_limits $(ARGS)
+
+api-docs: ## Regenerate docs/api (OpenAPI spec and Postman collection)
+	cd backend && uv run python -m app.tools.export_api ../docs/api
 
 test: ## Run all backend tests (integration tests need `make up` first)
 	cd backend && uv run pytest
