@@ -9,9 +9,11 @@
 
 name: campaign-manager
 
+# api, worker and migrate are built from the same Dockerfile. Each gets its own image name
+# (compose names them campaign-manager-<service>): sharing one name makes parallel builds
+# collide on some Docker versions. Layer caching means the work is only done once.
 x-backend: &backend
   build: ./backend
-  image: campaign-manager-backend
   restart: unless-stopped
   environment: &backend-env
     APP_ENV: ${APP_ENV:-local}
@@ -20,6 +22,15 @@ x-backend: &backend
     DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-campaign}:${POSTGRES_PASSWORD:-campaign}@postgres:5432/${POSTGRES_DB:-campaign_manager}
     REDIS_URL: redis://redis:6379/0
     SARVAM_BASE_URL: ${SARVAM_BASE_URL:-http://mock-sarvam:9000}
+    # The address the mock uses to send call results back to us.
+    PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://api:8000}
+    JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me-0123456789}
+    ENCRYPTION_KEY: ${ENCRYPTION_KEY:-bG9jYWwtZGV2LWVuY3J5cHRpb24ta2V5LTMyYnl0ZXM=}
+    WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-local-dev-webhook-secret}
+    SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+    DISPATCH_SLOTS: ${DISPATCH_SLOTS:-32}
+    # An attempt with no result after this long is marked lost (real calls can run long).
+    WEBHOOK_TIMEOUT_S: ${WEBHOOK_TIMEOUT_S:-300}
 
 services:
   postgres:
@@ -57,7 +68,8 @@ services:
   migrate:
     <<: *backend
     restart: "no"
-    command: ["alembic", "upgrade", "head"]
+    # Create or upgrade the schema, then add the superadmin and demo data (safe to rerun).
+    command: ["sh", "-c", "alembic upgrade head && python -m app.seed"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,6 +108,12 @@ services:
   mock-sarvam:
     build: ./mock_sarvam
     restart: unless-stopped
+    environment:
+      # 10 = calls last a tenth of real time, so a demo campaign finishes in minutes.
+      MOCK_SPEED: ${MOCK_SPEED:-10}
+      MOCK_FAIL_5XX_RATE: ${MOCK_FAIL_5XX_RATE:-0}
+      MOCK_WEBHOOK_DROP_RATE: ${MOCK_WEBHOOK_DROP_RATE:-0}
+      MOCK_WEBHOOK_DUP_RATE: ${MOCK_WEBHOOK_DUP_RATE:-0.05}
     ports:
       - "${MOCK_SARVAM_HOST_PORT:-9000}:9000"
     healthcheck:
