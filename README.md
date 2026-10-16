@@ -48,6 +48,13 @@ No `.env` file is needed. To change ports, secrets or the mock's behaviour, copy
 6. Try **Pause**: calls stop at once (nothing is queued ahead). **Resume** carries on, **Stop** cancels what's left.
 7. As the superadmin, change Acme's limits while a campaign runs and watch the chart follow.
 
+## Beyond the brief
+
+- **Do Not Disturb list** per organisation (Settings, or `/api/v1/organizations/{id}/dnd`). Listed numbers are skipped at upload and can never be dialed, even if added later.
+- **Check a CSV before creating anything**: the Recipients step validates against the agent (`POST /agents/{id}/validate-cohort`).
+- **Export results** as CSV, **duplicate** a campaign, **cancel** a single contact.
+- Live "calls in progress" history next to the calls-per-second chart, both against the org limits.
+
 ## Proving the limits
 
 The mock Sarvam server records every request it receives, so it can act as an independent referee. One command creates a fresh organisation, runs a campaign through the whole stack, and compares what the mock saw with the limits:
@@ -162,6 +169,18 @@ The full design, with the data model, state machines and failure cases, is in [`
 | 429 / 401 or 403 / other 4xx | Cool down / pause the workspace's campaigns / mark the attempt rejected (10 in a row pause the campaign). |
 | A webhook arrives twice, late, or before we saved the dispatch | Stored with a dedupe key, applied once, in any order. |
 | Redis restarts | The scheduler re-syncs every gate within a second. The first slot after a cold start is pushed 1 s out, so calls from just before the restart still count. |
+
+## Deploying
+
+`deploy/` runs the same stack on any Linux server, with Caddy in front for automatic HTTPS. Only ports 80 and 443 are open; the database, Redis, API and mock stay private. On a fresh Ubuntu server (Oracle Cloud's Always Free tier is enough):
+
+```bash
+git clone https://github.com/yshemashree/Campaign-Manager-Predixion-AI-.git
+cd Campaign-Manager-Predixion-AI-
+./deploy/setup.sh you@example.com
+```
+
+It installs Docker, writes `deploy/.env` with random secrets and a superadmin password, and serves the app at `https://<server-ip>.sslip.io`.
 
 ## Configuration
 
