@@ -25,7 +25,7 @@ from app.engine.dispatcher import Dispatcher
 from app.engine.gate import Gate
 from app.engine.sarvam_client import SarvamClient
 from app.engine.scheduler import Scheduler
-from tests.integration.conftest import ALWAYS_OPEN, csv_rows, make_org
+from tests.integration.conftest import ALWAYS_OPEN, csv_rows, drain_events, make_org
 
 
 class FakeSarvam:
@@ -260,3 +260,40 @@ async def test_stop_cancels_the_rest(
     called = sum(engine.calls_per_phone.values())
     assert stats["by_status"].get("cancelled") == 20 - called
     assert stats["by_status"].get("completed") == called
+
+
+async def test_dnd_numbers_never_reach_sarvam(
+    client: httpx.AsyncClient, superadmin: dict[str, str], engine: FakeSarvam, redis: Redis
+) -> None:
+    org = await make_org(client, superadmin, "Org A", concurrent=3, cps=5)
+    cid = await _create(client, org, 10)
+    # Listed after the upload, so these contacts are already queued.
+    blocked = [f"+9198{76000000 + i}" for i in (1, 4, 7)]
+    resp = await client.post(
+        f"/api/v1/organizations/{org['org']['id']}/dnd",
+        headers=org["admin"],
+        json={"phone_numbers": blocked, "reason": "do not call"},
+    )
+    assert resp.json()["added"] == 3
+
+    pubsub = redis.pubsub()
+    await pubsub.subscribe(f"ev:campaign:{cid}")
+    await _action(client, org, cid, "start")
+    stats = await _wait_status(client, org, cid, "completed", within=30)
+
+    assert stats["by_status"] == {"completed": 7, "cancelled": 3}
+    assert sum(engine.calls_per_phone.values()) == 7
+    assert not set(engine.calls_per_phone) & set(blocked)
+    page = (
+        await client.get(f"/api/v1/campaigns/{cid}/contacts?status=cancelled", headers=org["admin"])
+    ).json()
+    assert {c["phone_e164"] for c in page["items"]} == set(blocked)
+    assert {c["final_reason"] for c in page["items"]} == {"dnd"}
+
+    # Live contact events carry the fields the UI shows in the row.
+    updates = [e for e in await drain_events(pubsub) if e["type"] == "contact.updated"]
+    assert updates
+    assert all({"next_attempt_at", "last_outcome", "updated_at"} <= e.keys() for e in updates)
+    finished = [e for e in updates if e["status"] == "completed"]
+    assert finished and all(e["next_attempt_at"] is None for e in finished)
+    assert all(e["last_outcome"] == "completed" for e in finished)

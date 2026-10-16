@@ -277,7 +277,7 @@ class Dispatcher:
                 AttemptStatus.DISPATCHED if result.kind == "dispatched" else AttemptStatus.UNKNOWN
             )
             async with self.factory() as s:
-                await repo.record_dispatch(
+                dispatched = await repo.record_dispatch(
                     s,
                     contact_id=claim.contact_id,
                     attempt_ref=ref,
@@ -296,6 +296,8 @@ class Dispatcher:
                 log.warning("dispatch_outcome_unknown", attempt_ref=str(ref), error=result.error)
             else:
                 self._unknown_streak[org_id] = 0
+            if dispatched is None:
+                return  # the webhook won the race and has already published the outcome
             await events.publish(
                 self.redis,
                 campaign_id,
@@ -304,6 +306,9 @@ class Dispatcher:
                     "contact_id": str(claim.contact_id),
                     "status": "in_progress",
                     "attempts_made": claim.attempt_no,
+                    "next_attempt_at": events.iso(dispatched.next_attempt_at),
+                    "last_outcome": dispatched.last_outcome,
+                    "updated_at": events.iso(dispatched.updated_at),
                 },
             )
             return

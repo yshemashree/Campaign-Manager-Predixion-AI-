@@ -5,6 +5,7 @@ they never touch local demo data. Skipped automatically when Postgres/Redis aren
 """
 
 import asyncio
+import json
 import os
 import subprocess
 import sys
@@ -17,6 +18,7 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from redis.asyncio import Redis
+from redis.asyncio.client import PubSub
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -38,7 +40,7 @@ TEST_DB_URL = BASE.database_url.rsplit("/", 1)[0] + "/campaign_manager_test"
 TEST_REDIS_URL = BASE.redis_url.rsplit("/", 1)[0] + "/15"
 
 TABLES = (
-    "webhook_events, call_attempts, contacts, cohorts, campaigns, connections, agents,"
+    "dnd_numbers, webhook_events, call_attempts, contacts, cohorts, campaigns, connections, agents,"
     " workspace_members, users, workspaces, organizations"
 )
 
@@ -210,3 +212,39 @@ def csv_rows(n: int, start: int = 0) -> str:
     for i in range(start, start + n):
         lines.append(f"+9198{76000000 + i},lead-{i},Customer {i},{1000 + i}")
     return "\n".join(lines) + "\n"
+
+
+async def make_member(client: httpx.AsyncClient, org: dict[str, Any]) -> dict[str, str]:
+    """A member of the org's main workspace."""
+    email = f"member@{org['org']['name'].lower().replace(' ', '')}.example.com"
+    resp = await client.post(
+        "/api/v1/users",
+        headers=org["admin"],
+        json={
+            "email": email,
+            "password": "password123",
+            "role": "member",
+            "workspace_ids": [org["ws"]["id"]],
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    return await login(client, email, "password123")
+
+
+def phone(i: int) -> str:
+    """The number csv_rows() gives row i."""
+    return f"+9198{76000000 + i}"
+
+
+async def drain_events(pubsub: PubSub, quiet_s: float = 0.5) -> list[dict[str, Any]]:
+    """Every event published so far on the subscribed channels, then unsubscribe."""
+    found: list[dict[str, Any]] = []
+    deadline = asyncio.get_running_loop().time() + quiet_s
+    while asyncio.get_running_loop().time() < deadline:
+        msg = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.05)
+        if msg is not None:
+            found.append(json.loads(msg["data"]))
+            deadline = asyncio.get_running_loop().time() + quiet_s
+    await pubsub.unsubscribe()
+    await pubsub.aclose()  # type: ignore[no-untyped-call]
+    return found

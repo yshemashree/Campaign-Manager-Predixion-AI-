@@ -219,7 +219,7 @@ def validate(
     return result
 
 
-def _csv_safe(value: str) -> str:
+def csv_safe(value: str) -> str:
     """Stop spreadsheet apps from treating a cell as a formula."""
     return "'" + value if value[:1] in ("=", "+", "-", "@") else value
 
@@ -229,5 +229,5 @@ def error_report_csv(header: list[str], rejected: list[tuple[int, dict[str, str]
     writer = csv.writer(buf)
     writer.writerow(["row", *header, "error"])
     for row_no, record, message in rejected:
-        writer.writerow([row_no, *[_csv_safe(record.get(h, "")) for h in header], message])
+        writer.writerow([row_no, *[csv_safe(record.get(h, "")) for h in header], message])
     return buf.getvalue()

@@ -14,6 +14,10 @@ from typing import Any
 from redis.asyncio import Redis
 
 
+def iso(value: datetime | None) -> str | None:
+    return value.isoformat() if value else None
+
+
 def campaign_channel(campaign_id: uuid.UUID | str) -> str:
     return f"ev:campaign:{campaign_id}"
 

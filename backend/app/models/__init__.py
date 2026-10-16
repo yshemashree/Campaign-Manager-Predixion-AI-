@@ -14,6 +14,7 @@ from app.models.campaigns import (
     Contact,
     WebhookEvent,
 )
+from app.models.dnd import DndNumber
 from app.models.tenancy import Organization, User, Workspace, WorkspaceMember
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "Cohort",
     "Connection",
     "Contact",
+    "DndNumber",
     "Organization",
     "User",
     "WebhookEvent",
