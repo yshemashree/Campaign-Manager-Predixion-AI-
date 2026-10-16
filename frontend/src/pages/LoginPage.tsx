@@ -8,6 +8,13 @@ import { ErrorBanner } from "../components/Feedback";
 import { Field } from "../components/Field";
 import "./login.css";
 
+// Seeded by the backend on first start (see backend/app/seed.py).
+const DEMO_ACCOUNTS = [
+  { role: "Org admin", email: "admin@acme.example.com", password: "acme12345" },
+  { role: "Member", email: "agent@acme.example.com", password: "acme12345" },
+  { role: "Superadmin", email: "admin@example.com", password: "admin12345" },
+];
+
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -76,6 +83,27 @@ export function LoginPage() {
             Sign in
           </Button>
         </form>
+        <div className="login__demo">
+          <div className="login__demo-title">Demo accounts</div>
+          <p className="muted">Click one to fill in the form.</p>
+          {DEMO_ACCOUNTS.map((a) => (
+            <button
+              key={a.email}
+              type="button"
+              className="login__demo-row"
+              onClick={() => {
+                setEmail(a.email);
+                setPassword(a.password);
+                setError(null);
+              }}
+            >
+              <span className="login__demo-role">{a.role}</span>
+              <span className="login__demo-cred">
+                {a.email} / {a.password}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
       <div className="login__aside" aria-hidden>
         <div className="login__aside-inner">
