@@ -182,6 +182,10 @@ cd Campaign-Manager-Predixion-AI-
 
 It installs Docker, writes `deploy/.env` with random secrets and a superadmin password, and serves the app at `https://<server-ip>.sslip.io`.
 
+### Free hosting without a server
+
+`deploy/huggingface/` packs the whole stack (Postgres, Redis, API, worker, mock Sarvam and the web app) into one container for a free Hugging Face Docker Space. Create a Space with the Docker SDK and upload `deploy/huggingface/Dockerfile` and `deploy/huggingface/README.md`; the build clones this repository. Data resets when the Space restarts, and the demo logins are seeded each time.
+
 ## Configuration
 
 Every setting has a working default. The ones you might change (see `.env.example`):
