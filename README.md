@@ -1,6 +1,6 @@
 # Campaign Manager
 
-A production-style manager for **outbound AI-agent voice campaigns**, built around Sarvam's outbound call API. You create a campaign, upload a cohort CSV that is validated against the agent's variables, set a calling window, pacing and retry rules, and press start. The system then places the calls, retries the ones that need it, and shows every contact's status live.
+A production-style manager for **outbound AI-agent voice campaigns**, built around Sarvam's outbound call API. You create a campaign, upload a cohort CSV that is validated against the agent's variables, set a calling window, pacing and retry rules, and launch. The system places the calls, retries the ones that need it, and shows every contact's status live.
 
 Two per-organisation limits hold at all times, however many workers run:
 
@@ -9,21 +9,50 @@ Two per-organisation limits hold at all times, however many workers run:
 
 Every feature works from the web UI and from the REST API. All calls go to a mock Sarvam server; no real phone calls are ever made.
 
-## Quickstart
+## Try it online
 
-You only need [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+**https://campaign-manager-predixion-ai.onrender.com**
 
-```bash
-docker compose up --build
-```
-
-Then open **http://localhost:8080** and log in with one of the demo accounts:
+Free hosting: if nobody has visited for a while, the first load takes about a minute while the server wakes up. The demo accounts are listed on the sign-in page; click one to fill in the form.
 
 | Role | Email | Password | Can do |
 | --- | --- | --- | --- |
-| Superadmin | `admin@example.com` | `admin12345` | Create organisations and set their limits |
-| Org admin | `admin@acme.example.com` | `acme12345` | Everything inside "Acme Lending": workspaces, users, agents, connections, campaigns |
+| Org admin | `admin@acme.example.com` | `acme12345` | Everything inside "Acme Lending": workspaces, users, agents, connections, campaigns, Do Not Disturb |
 | Member | `agent@acme.example.com` | `acme12345` | Create and run campaigns in the workspaces they belong to |
+| Superadmin | `admin@example.com` | `admin12345` | Create organisations and set their limits |
+
+## Requirements checklist
+
+| Requirement from the brief | Status | Where |
+| --- | :---: | --- |
+| Campaign creation: agent, connection and caller numbers, attempts per second | ✅ | New campaign wizard (Agent step); `POST /workspaces/{id}/campaigns` |
+| Retry rules: busy, no answer, short call threshold, max attempts, backoff | ✅ | Schedule step, "Pacing & retries"; `retry_policy` |
+| Start and end time, calling window (timezone, days, hours) | ✅ | Schedule step; retries always move into the next open window |
+| Cohort upload with a per-agent sample CSV | ✅ | Agents page, "Download sample CSV"; `GET /agents/{id}/sample-cohort.csv` |
+| Validate the cohort before accepting it | ✅ | Recipients step shows every error by row and column; all-or-nothing, or skip invalid rows |
+| Start, pause, resume, stop | ✅ | Campaign page header; `PUT /campaigns/{id}/status` |
+| Live status of the campaign and every contact (pending, in progress, completed, failed, retrying, attempts made) | ✅ | Campaign page, updated live over server-sent events |
+| Execution engine: queue, workers, Redis, windows, retries, outcomes by webhook | ✅ | `backend/app/engine/` |
+| Org limit holds across every campaign, agent and worker | ✅ | One atomic Redis gate; proven by `make prove` and in CI |
+| Concurrency as calls running at the same time, plus calls per second | ✅ | Both limits enforced together |
+| Organisations, workspaces, superadmin and org users | ✅ | Roles: superadmin, org admin, member; other orgs' data returns 404 |
+| Everything usable from the frontend and from the REST API | ✅ | [OpenAPI spec](docs/api/openapi.json), [Postman collection](docs/api/campaign-manager.postman_collection.json), docs at `/api/docs` |
+| Runs with one command | ✅ | `docker compose up --build` |
+| README, design docs, API docs | ✅ | This file and [`docs/`](docs) |
+| Tests | ✅ | 82 backend + 5 mock tests, GitHub CI on every push, including a live limit proof |
+| Hosted demo | ✅ | Link above |
+
+## Quickstart
+
+You only need [Docker Desktop](https://www.docker.com/products/docker-desktop/) (give it about 20 GB of free disk) and git.
+
+```bash
+git clone https://github.com/yshemashree/Campaign-Manager-Predixion-AI-.git
+cd Campaign-Manager-Predixion-AI-
+docker compose up --build
+```
+
+The first build takes a few minutes. When the `web`, `api` and `worker` logs appear, open **http://localhost:8080** and log in with the same demo accounts as above.
 
 The demo organisation "Acme Lending" (20 calls at once, 5 per second) comes with a workspace, an "EMI Reminder" agent and a connection with three caller numbers, so you can create a campaign straight away.
 
@@ -36,17 +65,30 @@ The demo organisation "Acme Lending" (20 calls at once, 5 per second) comes with
 | postgres, redis | Database, and the rate gate plus live events (ports 5433 and 6380) | |
 | migrate | Creates the schema and demo data, then exits | |
 
-No `.env` file is needed. To change ports, secrets or the mock's behaviour, copy `.env.example` to `.env`.
+No `.env` file is needed. To change ports, secrets or the mock's behaviour, copy `.env.example` to `.env`. Stop with `Ctrl+C`, or run `docker compose down` (add `-v` to also delete the data).
+
+The default calling window is 09:00 to 21:00 India time, Monday to Saturday. Outside it, a campaign waits and the page shows when the window opens next; set the window to all days and 00:00 to 23:59 to try it any time.
 
 ## A five-minute tour
 
 1. Log in as `admin@acme.example.com`.
 2. **Agents** → "EMI Reminder" → **Download sample CSV**. The columns come from the agent's variables.
-3. **Campaigns** → **New campaign**: pick the agent and connection, set attempts per second, retry rules and the calling window.
-4. Upload the CSV. A dry run shows every problem by row and column before anything is imported (bad phone numbers, missing values, wrong types, duplicates). Fix it, or choose to skip invalid rows.
-5. **Start**. The campaign page updates live: counts by status, a progress bar, a calls-per-second chart against the org limits, and each contact's attempts.
-6. Try **Pause**: calls stop at once (nothing is queued ahead). **Resume** carries on, **Stop** cancels what's left.
-7. As the superadmin, change Acme's limits while a campaign runs and watch the chart follow.
+3. **Outbound Campaigns** → **New campaign**. The wizard follows Sarvam's flow:
+   - **Agent:** name, agent, connection and caller numbers.
+   - **Recipients:** upload the CSV. It is checked against the agent before anything is created: bad phone numbers, missing values, wrong types, duplicates and Do Not Disturb numbers, each by row and column.
+   - **Schedule:** start and end time, calling window, attempts per second and retry rules.
+   - **Review & Launch:** launch now, schedule for later, or save as a draft.
+4. The campaign page updates live: counts by status, a progress bar, calls per second and calls in progress against the org limits, and each contact's attempts.
+5. Try **Pause**: calls stop at once, because nothing is queued ahead. **Resume** carries on; **Stop** cancels what is left.
+6. **Export results**, **Duplicate** the campaign, or open a contact and **Cancel** it.
+7. As the superadmin, change Acme's limits while a campaign runs and watch the charts follow.
+
+## Beyond the brief
+
+- **Do Not Disturb list** per organisation (Settings, or `/api/v1/organizations/{id}/dnd`). Listed numbers are skipped at upload and can never be dialed, even if added later.
+- **Check a CSV before creating anything**: the Recipients step validates against the agent (`POST /agents/{id}/validate-cohort`).
+- **Export results** as CSV, **duplicate** a campaign, **cancel** a single contact.
+- Live "calls in progress" history next to the calls-per-second chart, both against the org limits.
 
 ## Proving the limits
 
@@ -162,6 +204,22 @@ The full design, with the data model, state machines and failure cases, is in [`
 | 429 / 401 or 403 / other 4xx | Cool down / pause the workspace's campaigns / mark the attempt rejected (10 in a row pause the campaign). |
 | A webhook arrives twice, late, or before we saved the dispatch | Stored with a dedupe key, applied once, in any order. |
 | Redis restarts | The scheduler re-syncs every gate within a second. The first slot after a cold start is pushed 1 s out, so calls from just before the restart still count. |
+
+## Deploying
+
+`deploy/` runs the same stack on any Linux server, with Caddy in front for automatic HTTPS. Only ports 80 and 443 are open; the database, Redis, API and mock stay private. On a fresh Ubuntu server (Oracle Cloud's Always Free tier is enough):
+
+```bash
+git clone https://github.com/yshemashree/Campaign-Manager-Predixion-AI-.git
+cd Campaign-Manager-Predixion-AI-
+./deploy/setup.sh you@example.com
+```
+
+It installs Docker, writes `deploy/.env` with random secrets and a superadmin password, and serves the app at `https://<server-ip>.sslip.io`.
+
+### Free hosting without a server
+
+The live demo runs on Render's free tier from `deploy/huggingface/Dockerfile`, which packs the whole stack (Postgres, Redis, API, worker, mock Sarvam and the web app) into one container. On Render: new Web Service from this repo, runtime Docker, Dockerfile path `./deploy/huggingface/Dockerfile`, environment `PORT=7860`, `DISPATCH_SLOTS=8`, `DB_POOL_SIZE=3`, `DB_MAX_OVERFLOW=2`, health check `/readyz`. The same file works on any host that runs a single Docker image. Data resets when the service restarts, and the demo logins are seeded each time.
 
 ## Configuration
 

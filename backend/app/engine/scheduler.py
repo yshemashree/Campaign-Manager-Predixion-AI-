@@ -78,6 +78,7 @@ class Scheduler:
         await self.sync_orgs()
         await self.activate_scheduled()
         await self.finish_campaigns()
+        await self.cancel_dnd()
         await self.sync_campaigns()
         await self.finalise_closed()
         await self.reap_leases()
@@ -150,6 +151,32 @@ class Scheduler:
             RETURNING id
             """
         )
+
+    # 3b. queued contacts whose number is now on the org's DND list. The claim query already
+    # skips them; this closes them out so campaigns can finish.
+    async def cancel_dnd(self) -> None:
+        async with self.factory() as s:
+            result = await s.execute(
+                text(
+                    """
+                    WITH batch AS (
+                        SELECT c.id FROM contacts c
+                        JOIN dnd_numbers d ON d.org_id = c.org_id AND d.phone_e164 = c.phone_e164
+                        WHERE c.status IN ('pending', 'retry_scheduled')
+                        LIMIT :batch FOR UPDATE OF c SKIP LOCKED
+                    )
+                    UPDATE contacts c
+                    SET status = 'cancelled', final_reason = 'dnd', updated_at = now()
+                    FROM batch WHERE c.id = batch.id
+                    RETURNING c.campaign_id
+                    """
+                ),
+                {"batch": FINALISE_BATCH},
+            )
+            touched = {row[0] for row in result}
+            await s.commit()
+        for cid in touched:
+            await events.publish(self.redis, cid, {"type": "campaign.updated"})
 
     # 4. campaign state + window -> Redis gates; publish the runnable set
     async def sync_campaigns(self) -> None:
