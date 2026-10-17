@@ -2,24 +2,23 @@
 
 import uuid
 
-from fastapi import APIRouter, File, Response, UploadFile, status
+from fastapi import APIRouter, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import SessionDep, SettingsDep, TenantDep
-from app.core.errors import Conflict, Unprocessable
+from app.api.deps import SessionDep, TenantDep
+from app.core.errors import Conflict
 from app.domain.cohort_schema import Variable, sample_csv
 from app.models import Agent, Connection
 from app.schemas.campaigns import (
     AgentCreate,
     AgentOut,
     AgentUpdate,
-    CohortUploadResult,
     ConnectionCreate,
     ConnectionOut,
     ConnectionUpdate,
 )
-from app.services import cohorts, scope
+from app.services import scope
 
 router = APIRouter(tags=["agents & connections"])
 
@@ -95,21 +94,6 @@ async def sample_cohort(agent_id: uuid.UUID, ctx: TenantDep, session: SessionDep
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="sample-{safe_name}.csv"'},
     )
-
-
-@router.post("/agents/{agent_id}/validate-cohort", response_model=CohortUploadResult)
-async def validate_cohort(
-    agent_id: uuid.UUID,
-    ctx: TenantDep,
-    session: SessionDep,
-    settings: SettingsDep,
-    file: UploadFile = File(description="CSV with phone_number, lead_id and the agent's variables"),
-) -> CohortUploadResult:
-    """Check a CSV against this agent's variables before any campaign exists. Imports nothing."""
-    agent = await scope.get_agent(session, ctx, agent_id)
-    if file.size is not None and file.size > settings.max_upload_bytes:
-        raise Unprocessable(f"The file is larger than {settings.max_upload_bytes // 1_000_000} MB")
-    return await cohorts.check(session, settings, agent=agent, binary=file.file)
 
 
 @router.get("/workspaces/{workspace_id}/connections", response_model=list[ConnectionOut])

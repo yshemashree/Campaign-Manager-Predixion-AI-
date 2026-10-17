@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Query, status
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import GateDep, SessionDep, TenantDep
@@ -102,7 +102,7 @@ async def org_rate(
     gate: GateDep,
     seconds: int = Query(default=60, ge=5, le=300),
 ) -> dict[str, object]:
-    """Calls sent per second over the last N seconds, calls live in each second and right now."""
+    """Calls sent per second over the last N seconds, plus calls live right now."""
     org = await scope.get_org(session, ctx, org_id)
     now_ms = int((await gate.redis.time())[0]) * 1000
     start_ms = now_ms - seconds * 1000
@@ -119,29 +119,6 @@ async def org_rate(
         while ts - fires[left] >= 1000:
             left += 1
         max_rolling = max(max_rolling, right - left + 1)
-    start_s = start_ms // 1000
-    # Calls in progress at the end of each second: started by then, not yet ended.
-    live = await session.execute(
-        text(
-            """
-            WITH a AS (
-                SELECT COALESCE(dispatched_at, created_at) AS began,
-                       CASE WHEN status IN ('reserved', 'dispatched', 'unknown')
-                            THEN 'infinity'::timestamptz ELSE ended_at END AS ended
-                FROM call_attempts
-                WHERE org_id = :org
-                  AND COALESCE(dispatched_at, created_at) < to_timestamp(:last + 1)
-                  AND (status IN ('reserved', 'dispatched', 'unknown')
-                       OR ended_at > to_timestamp(:first + 1))
-            )
-            SELECT s.t, count(a.began) AS calls
-            FROM generate_series(:first, :last) AS s(t)
-            LEFT JOIN a ON a.began <= to_timestamp(s.t + 1) AND a.ended > to_timestamp(s.t + 1)
-            GROUP BY s.t ORDER BY s.t
-            """
-        ),
-        {"org": org.id, "first": start_s, "last": start_s + seconds - 1},
-    )
     return {
         "org_id": str(org.id),
         "max_calls_per_second": org.max_calls_per_second,
@@ -149,5 +126,4 @@ async def org_rate(
         "live_calls": await gate.inflight_count(org.id),
         "per_second": [{"t": (start_ms // 1000) + i, "calls": n} for i, n in enumerate(buckets)],
         "max_in_any_rolling_second": max_rolling,
-        "live_per_second": [{"t": int(t), "calls": n} for t, n in live],
     }

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.domain.cohort_schema import RESERVED_COLUMNS, VARIABLE_NAME_RE, VARIABLE_TYPES
 from app.domain.retry_policy import DEFAULT_RETRY_POLICY
-from app.domain.states import TERMINAL_CONTACT_STATUSES, LifecycleAction
+from app.domain.states import LifecycleAction
 
 E164_RE = re.compile(r"^\+[1-9]\d{6,14}$")
 
@@ -223,9 +223,6 @@ class CampaignCreate(BaseModel):
 
 class CampaignUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=200)
-    # agent_id, connection_id and caller_numbers can only change while the campaign is a draft.
-    agent_id: uuid.UUID | None = None
-    connection_id: uuid.UUID | None = None
     caller_numbers: list[str] | None = None
     attempts_per_second: float | None = Field(default=None, ge=0.1, le=500)
     retry_policy: RetryPolicy | None = None
@@ -237,7 +234,6 @@ class CampaignUpdate(BaseModel):
 
 class CampaignOut(Out):
     id: uuid.UUID
-    org_id: uuid.UUID
     workspace_id: uuid.UUID
     agent_id: uuid.UUID
     connection_id: uuid.UUID
@@ -255,7 +251,6 @@ class CampaignOut(Out):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
-    contact_counts: dict[str, int] = {}  # contacts by status, e.g. {"pending": 3}
 
 
 class StatusAction(BaseModel):
@@ -302,7 +297,6 @@ class CohortUploadResult(BaseModel):
     rows_rejected: int
     duplicates_in_file: int
     duplicates_existing: int
-    dnd_skipped: int = 0  # valid rows left out because the number is on the DND list
     header_errors: list[str]
     errors: list[RowErrorOut]  # first 100; the full list is in the error report
     error_report_csv: str | None = None  # every rejected row with its reason, as CSV
@@ -316,16 +310,10 @@ class ContactOut(Out):
     variables: dict[str, Any]
     status: str
     attempts_made: int
-    next_attempt_at: datetime | None  # null once the contact is finished
+    next_attempt_at: datetime
     last_outcome: str | None
     final_reason: str | None
     updated_at: datetime
-
-    @model_validator(mode="after")
-    def _no_next_when_done(self) -> "ContactOut":
-        if self.status in TERMINAL_CONTACT_STATUSES:
-            self.next_attempt_at = None
-        return self
 
 
 class AttemptOut(Out):
@@ -349,4 +337,3 @@ class ContactDetail(ContactOut):
 class ContactPage(BaseModel):
     items: list[ContactOut]
     next_cursor: str | None
-    total: int  # contacts matching the filters, across all pages

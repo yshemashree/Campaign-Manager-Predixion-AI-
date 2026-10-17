@@ -17,7 +17,6 @@ from app.api.v1 import (
     auth,
     campaigns,
     contacts,
-    dnd,
     events,
     organizations,
     users,
@@ -90,7 +89,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         agents,
         campaigns,
         contacts,
-        dnd,
         events,
         webhooks,
     ):

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain import retry_policy
 from app.domain.outcomes import classify
-from app.domain.states import TERMINAL_CONTACT_STATUSES, AttemptStatus, ContactStatus
+from app.domain.states import AttemptStatus, ContactStatus
 from app.domain.windows import CallingWindow
 
 
@@ -39,20 +39,6 @@ class OutcomeApplied:
     attempt_status: str
     contact_status: str | None  # None if the contact had already moved on
     attempts_made: int
-    next_attempt_at: datetime | None  # None once the contact is finished
-    last_outcome: str | None
-    updated_at: datetime
-
-
-@dataclass(frozen=True)
-class Dispatched:
-    next_attempt_at: datetime
-    last_outcome: str | None
-    updated_at: datetime
-
-
-def _next_at(status: str, next_attempt_at: datetime | None) -> datetime | None:
-    return None if status in TERMINAL_CONTACT_STATUSES else next_attempt_at
 
 
 _CLAIM_SQL = text(
@@ -62,8 +48,6 @@ _CLAIM_SQL = text(
         WHERE c.campaign_id = :campaign_id
           AND c.status IN ('pending', 'retry_scheduled')
           AND c.next_attempt_at <= now()
-          AND NOT EXISTS (SELECT 1 FROM dnd_numbers d
-                          WHERE d.org_id = c.org_id AND d.phone_e164 = c.phone_e164)
           AND EXISTS (SELECT 1 FROM campaigns k
                       WHERE k.id = :campaign_id AND k.status = 'running'
                         AND k.state_version = :version)
@@ -175,8 +159,8 @@ async def record_dispatch(
     provider_attempt_id: str | None,
     http_status: int | None,
     error: str | None,
-) -> Dispatched | None:
-    """After the HTTP call. No-op (None) if the (faster) webhook already finished the attempt."""
+) -> None:
+    """After the HTTP call. No-op if the (faster) webhook already finished the attempt."""
     await session.execute(
         text(
             """
@@ -194,28 +178,18 @@ async def record_dispatch(
             "ref": attempt_ref,
         },
     )
-    row = (
-        await session.execute(
-            text(
-                """
-                UPDATE contacts
-                SET status = 'in_progress', lease_owner = NULL, lease_expires_at = NULL,
-                    updated_at = now()
-                WHERE id = :contact AND status = 'dialing' AND current_attempt_id = :ref
-                RETURNING next_attempt_at, last_outcome, updated_at
-                """
-            ),
-            {"contact": contact_id, "ref": attempt_ref},
-        )
-    ).first()
-    await session.commit()
-    if row is None:
-        return None
-    return Dispatched(
-        next_attempt_at=row.next_attempt_at,
-        last_outcome=row.last_outcome,
-        updated_at=row.updated_at,
+    await session.execute(
+        text(
+            """
+            UPDATE contacts
+            SET status = 'in_progress', lease_owner = NULL, lease_expires_at = NULL,
+                updated_at = now()
+            WHERE id = :contact AND status = 'dialing' AND current_attempt_id = :ref
+            """
+        ),
+        {"contact": contact_id, "ref": attempt_ref},
     )
+    await session.commit()
 
 
 TERMINAL_ATTEMPT = {
@@ -317,9 +291,6 @@ async def apply_outcome(
         attempt_status=outcome,
         contact_status=None,
         attempts_made=contact["attempts_made"],
-        next_attempt_at=_next_at(contact["status"], contact["next_attempt_at"]),
-        last_outcome=contact["last_outcome"],
-        updated_at=contact["updated_at"],
     )
     if contact["current_attempt_id"] != attempt_ref:
         return applied  # the contact has moved on to a newer attempt
@@ -374,9 +345,4 @@ async def apply_outcome(
         attempt_status=outcome,
         contact_status=decision.status,
         attempts_made=applied.attempts_made,
-        next_attempt_at=_next_at(
-            decision.status, decision.next_attempt_at or contact["next_attempt_at"]
-        ),
-        last_outcome=outcome,
-        updated_at=now,
     )

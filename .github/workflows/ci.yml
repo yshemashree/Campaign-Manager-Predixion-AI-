@@ -28,7 +28,7 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping" --health-interval 3s --health-timeout 3s --health-retries 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
@@ -46,7 +46,7 @@ jobs:
       run:
         working-directory: mock_sarvam
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
@@ -55,28 +55,12 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run pytest -v
 
-  frontend:
-    name: Web app (type check, build)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm run build
-
   stack:
     name: Stack starts with one command and respects limits
     runs-on: ubuntu-latest
-    needs: [backend, mock-sarvam, frontend]
+    needs: [backend, mock-sarvam]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - run: docker compose up --build -d --wait
       - run: curl -fsS localhost:8000/readyz
       - run: curl -fsS localhost:8080/readyz

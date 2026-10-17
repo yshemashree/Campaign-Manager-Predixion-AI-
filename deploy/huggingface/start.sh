@@ -16,8 +16,8 @@ secret() { python -c "import secrets; print(secrets.token_hex(32))"; }
 export APP_ENV=production LOG_JSON=true
 export DATABASE_URL=postgresql+asyncpg://campaign@127.0.0.1:5432/campaign_manager
 export REDIS_URL=redis://127.0.0.1:6379/0
-export SARVAM_BASE_URL=http://127.0.0.1:9000
-export PUBLIC_BASE_URL=http://127.0.0.1:8000
+export SARVAM_BASE_URL=${SARVAM_BASE_URL:-http://127.0.0.1:9000}
+export PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://127.0.0.1:8000}
 export JWT_SECRET=${JWT_SECRET:-$(secret)}
 export WEBHOOK_SIGNING_SECRET=${WEBHOOK_SIGNING_SECRET:-$(secret)}
 export ENCRYPTION_KEY=${ENCRYPTION_KEY:-$(python -c "import base64,os; print(base64.b64encode(os.urandom(32)).decode())")}

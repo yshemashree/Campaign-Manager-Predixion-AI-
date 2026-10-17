@@ -309,7 +309,7 @@
           "organizations"
         ],
         "summary": "Org Rate",
-        "description": "Calls sent per second over the last N seconds, calls live in each second and right now.",
+        "description": "Calls sent per second over the last N seconds, plus calls live right now.",
         "operationId": "org_rate_api_v1_organizations__org_id__rate_get",
         "security": [
           {
@@ -1013,65 +1013,6 @@
         }
       }
     },
-    "/api/v1/agents/{agent_id}/validate-cohort": {
-      "post": {
-        "tags": [
-          "agents & connections"
-        ],
-        "summary": "Validate Cohort",
-        "description": "Check a CSV against this agent's variables before any campaign exists. Imports nothing.",
-        "operationId": "validate_cohort_api_v1_agents__agent_id__validate_cohort_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "agent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Agent Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_validate_cohort_api_v1_agents__agent_id__validate_cohort_post"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CohortUploadResult"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/workspaces/{workspace_id}/connections": {
       "get": {
         "tags": [
@@ -1505,55 +1446,6 @@
         }
       }
     },
-    "/api/v1/campaigns/{campaign_id}/duplicate": {
-      "post": {
-        "tags": [
-          "campaigns"
-        ],
-        "summary": "Duplicate Campaign",
-        "description": "A new draft with the same settings. Contacts and start/end times are not copied.",
-        "operationId": "duplicate_campaign_api_v1_campaigns__campaign_id__duplicate_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "campaign_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Campaign Id"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CampaignOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/campaigns/{campaign_id}/status": {
       "put": {
         "tags": [
@@ -1928,50 +1820,6 @@
         }
       }
     },
-    "/api/v1/campaigns/{campaign_id}/contacts.csv": {
-      "get": {
-        "tags": [
-          "cohorts & contacts"
-        ],
-        "summary": "Export Contacts",
-        "operationId": "export_contacts_api_v1_campaigns__campaign_id__contacts_csv_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "campaign_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Campaign Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Every contact, as CSV",
-            "content": {
-              "text/csv": {}
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/contacts/{contact_id}": {
       "get": {
         "tags": [
@@ -2006,319 +1854,6 @@
                 }
               }
             }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/contacts/{contact_id}/cancel": {
-      "post": {
-        "tags": [
-          "cohorts & contacts"
-        ],
-        "summary": "Cancel Contact",
-        "description": "Take a waiting contact out of the queue. A call already in progress can't be cancelled.",
-        "operationId": "cancel_contact_api_v1_contacts__contact_id__cancel_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "contact_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Contact Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ContactOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{org_id}/dnd": {
-      "get": {
-        "tags": [
-          "do not disturb"
-        ],
-        "summary": "List Dnd",
-        "description": "Newest first.",
-        "operationId": "list_dnd_api_v1_organizations__org_id__dnd_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "org_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Org Id"
-            }
-          },
-          {
-            "name": "search",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "maxLength": 30
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Part of the number",
-              "title": "Search"
-            },
-            "description": "Part of the number"
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "next_cursor from the last page",
-              "title": "Cursor"
-            },
-            "description": "next_cursor from the last page"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 500,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DndPage"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "do not disturb"
-        ],
-        "summary": "Add Dnd",
-        "operationId": "add_dnd_api_v1_organizations__org_id__dnd_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "org_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Org Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DndAdd"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DndAddResult"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{org_id}/dnd/upload": {
-      "post": {
-        "tags": [
-          "do not disturb"
-        ],
-        "summary": "Upload Dnd",
-        "operationId": "upload_dnd_api_v1_organizations__org_id__dnd_upload_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "org_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Org Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_upload_dnd_api_v1_organizations__org_id__dnd_upload_post"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DndAddResult"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/organizations/{org_id}/dnd/{phone_e164}": {
-      "delete": {
-        "tags": [
-          "do not disturb"
-        ],
-        "summary": "Remove Dnd",
-        "description": "Contacts already cancelled because of this number stay cancelled.",
-        "operationId": "remove_dnd_api_v1_organizations__org_id__dnd__phone_e164__delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "org_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Org Id"
-            }
-          },
-          {
-            "name": "phone_e164",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Phone E164"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -2834,36 +2369,6 @@
         ],
         "title": "Body_upload_cohort_api_v1_campaigns__campaign_id__cohorts_post"
       },
-      "Body_upload_dnd_api_v1_organizations__org_id__dnd_upload_post": {
-        "properties": {
-          "file": {
-            "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "description": "CSV with a phone_number column and an optional reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "file"
-        ],
-        "title": "Body_upload_dnd_api_v1_organizations__org_id__dnd_upload_post"
-      },
-      "Body_validate_cohort_api_v1_agents__agent_id__validate_cohort_post": {
-        "properties": {
-          "file": {
-            "type": "string",
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
-            "description": "CSV with phone_number, lead_id and the agent's variables"
-          }
-        },
-        "type": "object",
-        "required": [
-          "file"
-        ],
-        "title": "Body_validate_cohort_api_v1_agents__agent_id__validate_cohort_post"
-      },
       "CallingWindowIn": {
         "properties": {
           "timezone": {
@@ -3027,11 +2532,6 @@
             "format": "uuid",
             "title": "Id"
           },
-          "org_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Org Id"
-          },
           "workspace_id": {
             "type": "string",
             "format": "uuid",
@@ -3148,20 +2648,11 @@
               }
             ],
             "title": "Finished At"
-          },
-          "contact_counts": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "type": "object",
-            "title": "Contact Counts",
-            "default": {}
           }
         },
         "type": "object",
         "required": [
           "id",
-          "org_id",
           "workspace_id",
           "agent_id",
           "connection_id",
@@ -3276,30 +2767,6 @@
               }
             ],
             "title": "Name"
-          },
-          "agent_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agent Id"
-          },
-          "connection_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Connection Id"
           },
           "caller_numbers": {
             "anyOf": [
@@ -3476,11 +2943,6 @@
           "duplicates_existing": {
             "type": "integer",
             "title": "Duplicates Existing"
-          },
-          "dnd_skipped": {
-            "type": "integer",
-            "title": "Dnd Skipped",
-            "default": 0
           },
           "header_errors": {
             "items": {
@@ -3680,15 +3142,8 @@
             "title": "Attempts Made"
           },
           "next_attempt_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "format": "date-time",
             "title": "Next Attempt At"
           },
           "last_outcome": {
@@ -3777,15 +3232,8 @@
             "title": "Attempts Made"
           },
           "next_attempt_at": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "format": "date-time",
             "title": "Next Attempt At"
           },
           "last_outcome": {
@@ -3851,17 +3299,12 @@
               }
             ],
             "title": "Next Cursor"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
           }
         },
         "type": "object",
         "required": [
           "items",
-          "next_cursor",
-          "total"
+          "next_cursor"
         ],
         "title": "ContactPage"
       },
@@ -3877,145 +3320,6 @@
           "cancelled"
         ],
         "title": "ContactStatus"
-      },
-      "DndAdd": {
-        "properties": {
-          "phone_numbers": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "maxItems": 10000,
-            "minItems": 1,
-            "title": "Phone Numbers"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 500
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          }
-        },
-        "type": "object",
-        "required": [
-          "phone_numbers"
-        ],
-        "title": "DndAdd"
-      },
-      "DndAddResult": {
-        "properties": {
-          "added": {
-            "type": "integer",
-            "title": "Added"
-          },
-          "already_listed": {
-            "type": "integer",
-            "title": "Already Listed"
-          },
-          "invalid": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Invalid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "added",
-          "already_listed",
-          "invalid"
-        ],
-        "title": "DndAddResult"
-      },
-      "DndOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "phone_e164": {
-            "type": "string",
-            "title": "Phone E164"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "created_by": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Created By"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "phone_e164",
-          "reason",
-          "created_at",
-          "created_by"
-        ],
-        "title": "DndOut"
-      },
-      "DndPage": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DndOut"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "next_cursor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Cursor"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "next_cursor",
-          "total"
-        ],
-        "title": "DndPage"
       },
       "HTTPValidationError": {
         "properties": {

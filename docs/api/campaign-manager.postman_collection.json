@@ -284,7 +284,7 @@
                 }
               ]
             },
-            "description": "Calls sent per second over the last N seconds, calls live in each second and right now."
+            "description": "Calls sent per second over the last N seconds, plus calls live right now."
           }
         }
       ]
@@ -695,32 +695,6 @@
           }
         },
         {
-          "name": "Duplicate Campaign",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/campaigns/:campaign_id/duplicate",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "campaigns",
-                ":campaign_id",
-                "duplicate"
-              ],
-              "variable": [
-                {
-                  "key": "campaign_id",
-                  "value": "{{campaign_id}}"
-                }
-              ]
-            },
-            "description": "A new draft with the same settings. Contacts and start/end times are not copied."
-          }
-        },
-        {
           "name": "Change Status",
           "request": {
             "method": "PUT",
@@ -948,42 +922,6 @@
               ]
             },
             "description": ""
-          }
-        },
-        {
-          "name": "Validate Cohort",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/agents/:agent_id/validate-cohort",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "agents",
-                ":agent_id",
-                "validate-cohort"
-              ],
-              "variable": [
-                {
-                  "key": "agent_id",
-                  "value": "{{agent_id}}"
-                }
-              ]
-            },
-            "description": "Check a CSV against this agent's variables before any campaign exists. Imports nothing.",
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": ""
-                }
-              ]
-            }
           }
         },
         {
@@ -1245,32 +1183,6 @@
           }
         },
         {
-          "name": "Export Contacts",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/campaigns/:campaign_id/contacts.csv",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "campaigns",
-                ":campaign_id",
-                "contacts.csv"
-              ],
-              "variable": [
-                {
-                  "key": "campaign_id",
-                  "value": "{{campaign_id}}"
-                }
-              ]
-            },
-            "description": ""
-          }
-        },
-        {
           "name": "Get Contact",
           "request": {
             "method": "GET",
@@ -1293,189 +1205,6 @@
               ]
             },
             "description": ""
-          }
-        },
-        {
-          "name": "Cancel Contact",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/contacts/:contact_id/cancel",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "contacts",
-                ":contact_id",
-                "cancel"
-              ],
-              "variable": [
-                {
-                  "key": "contact_id",
-                  "value": "{{contact_id}}"
-                }
-              ]
-            },
-            "description": "Take a waiting contact out of the queue. A call already in progress can't be cancelled."
-          }
-        }
-      ]
-    },
-    {
-      "name": "Do not disturb",
-      "item": [
-        {
-          "name": "List Dnd",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/organizations/:org_id/dnd",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "organizations",
-                ":org_id",
-                "dnd"
-              ],
-              "variable": [
-                {
-                  "key": "org_id",
-                  "value": "{{org_id}}"
-                }
-              ],
-              "query": [
-                {
-                  "key": "search",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "cursor",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "",
-                  "disabled": true
-                }
-              ]
-            },
-            "description": "Newest first."
-          }
-        },
-        {
-          "name": "Add Dnd",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/organizations/:org_id/dnd",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "organizations",
-                ":org_id",
-                "dnd"
-              ],
-              "variable": [
-                {
-                  "key": "org_id",
-                  "value": "{{org_id}}"
-                }
-              ]
-            },
-            "description": "",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone_numbers\": [\n    \"+919876543210\"\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Upload Dnd",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/organizations/:org_id/dnd/upload",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "organizations",
-                ":org_id",
-                "dnd",
-                "upload"
-              ],
-              "variable": [
-                {
-                  "key": "org_id",
-                  "value": "{{org_id}}"
-                }
-              ]
-            },
-            "description": "",
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": ""
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Remove Dnd",
-          "request": {
-            "method": "DELETE",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/organizations/:org_id/dnd/:phone_e164",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "organizations",
-                ":org_id",
-                "dnd",
-                ":phone_e164"
-              ],
-              "variable": [
-                {
-                  "key": "org_id",
-                  "value": "{{org_id}}"
-                },
-                {
-                  "key": "phone_e164",
-                  "value": "{{phone_e164}}"
-                }
-              ]
-            },
-            "description": "Contacts already cancelled because of this number stay cancelled."
           }
         }
       ]

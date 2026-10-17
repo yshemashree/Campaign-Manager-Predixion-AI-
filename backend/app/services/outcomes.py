@@ -37,9 +37,6 @@ async def after_outcome(
             "attempt_status": applied.attempt_status,
             "status": applied.contact_status,
             "attempts_made": applied.attempts_made,
-            "next_attempt_at": events.iso(applied.next_attempt_at),
-            "last_outcome": applied.last_outcome,
-            "updated_at": events.iso(applied.updated_at),
         },
     )
 

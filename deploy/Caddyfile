@@ -1,9 +1,0 @@
-# Caddy gets and renews the HTTPS certificate on its own.
-# The web container already serves the app and proxies /api to the API service.
-{$SITE_ADDRESS} {
-	encode zstd gzip
-	reverse_proxy web:80 {
-		# Live updates are server-sent events: pass them through as they arrive.
-		flush_interval -1
-	}
-}
